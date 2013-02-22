@@ -9,10 +9,9 @@ jQuery.extend({
 			];
 		
 		// Add in custom methods
-		var orig_tuples = tuples.slice(0);
 		if (customs) {
 			jQuery.each(customs, function(i, custom) {
-				tuples.unshift( [ custom[0], custom[1], jQuery.Callbacks("memory")  ] );
+				tuples.push( [ custom[0], custom[1], jQuery.Callbacks("memory")  ] );
 			});
 		}
 		
@@ -28,17 +27,18 @@ jQuery.extend({
 				then: function( /* fnDone, fnFail, fnProgress */ ) {
 					var fns = arguments;
 					return jQuery.Deferred(function( newDefer ) {
-						jQuery.each( orig_tuples, function( i, tuple ) {
+						jQuery.each( tuples, function( i, tuple ) {
 							var action = tuple[ 0 ],
 								fn = jQuery.isFunction( fns[ i ] ) && fns[ i ];
 							// deferred[ done | fail | progress ] for forwarding actions to newDefer
 							deferred[ tuple[1] ](function() {
 								var returned = fn && fn.apply( this, arguments );
 								if ( returned && jQuery.isFunction( returned.promise ) ) {
-									returned.promise()
-										.done( newDefer.resolve )
-										.fail( newDefer.reject )
-										.progress( newDefer.notify );
+									var newPromise = returned.promise();
+									jQuery.each(tuples, function(i, tuple) {
+										var func = newPromise[ tuple[ 1 ] ];
+										func( newDefer[ tuple[ 0 ] ]);
+									});
 								} else {
 									newDefer[ action + "With" ]( this === promise ? newDefer.promise() : this, fn ? [ returned ] : arguments );
 								}
